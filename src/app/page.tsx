@@ -10,12 +10,22 @@ type Entry = {
 
 export default function HomePage() {
   const [entry, setEntry] = useState('');
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const [entries, setEntries] = useState<Entry[] | null>(null);
 
   const fetchEntries = async () => {
-    const res = await fetch('/api/entry');
-    const data = await res.json();
-    setEntries(data);
+    try {
+      const res = await fetch('/api/entry');
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setEntries(data);
+      } else {
+        console.error('❌ API returned non-array:', data);
+        setEntries([]);
+      }
+    } catch (error) {
+      console.error('❌ Failed to fetch entries:', error);
+      setEntries([]);
+    }
   };
 
   const handleSave = async () => {
@@ -66,7 +76,14 @@ export default function HomePage() {
 
       <div className="w-full max-w-xl mt-12">
         <h2 className="text-2xl font-semibold mb-4">Previous Entries</h2>
-        {entries.map((entry) => (
+
+        {entries === null && <p>Loading entries...</p>}
+
+        {Array.isArray(entries) && entries.length === 0 && (
+          <p className="text-gray-500">No entries yet. Start journaling!</p>
+        )}
+
+        {Array.isArray(entries) && entries.map((entry) => (
           <div key={entry.id} className="mb-4 p-4 border rounded shadow-sm">
             <p className="text-gray-800 mb-2">{entry.content}</p>
             {entry.summary && (
