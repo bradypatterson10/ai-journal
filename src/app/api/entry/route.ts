@@ -7,48 +7,56 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Handle creating a new entry with GPT-generated summary
 export async function POST(req: Request) {
-  const { content } = await req.json();
-
-  if (!content || content.trim() === '') {
-    return NextResponse.json({ error: 'Entry content is required' }, { status: 400 });
-  }
-
-  // Generate summary using OpenAI
-  let summary = '';
   try {
-    const chat = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [
-        {
-          role: 'user',
-          content: `Summarize this journal entry in 1–2 sentences:\n\n${content}`,
-        },
-      ],
-      temperature: 0.7,
+    const { content } = await req.json();
+    console.log('🚀 Received entry:', content);
+
+    if (!content || content.trim() === '') {
+      return NextResponse.json({ error: 'Entry content is required' }, { status: 400 });
+    }
+
+    let summary = '';
+    try {
+      const chat = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'user', content: `Summarize this journal entry in 1–2 sentences:\n\n${content}` },
+        ],
+        temperature: 0.7,
+      });
+
+      summary = chat.choices[0].message.content || '';
+      console.log('🧠 Summary generated:', summary);
+    } catch (openaiError) {
+      console.error('❌ OpenAI error:', openaiError);
+      summary = '(summary failed)';
+    }
+
+    const newEntry = await prisma.entry.create({
+      data: { content, summary },
     });
 
-    summary = chat.choices[0].message.content || '';
+    console.log('✅ Entry saved to DB:', newEntry);
+    return NextResponse.json(newEntry);
   } catch (error) {
-    console.error('OpenAI error:', error);
-    summary = '(summary failed)';
+    console.error('❌ Route POST error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-
-  const newEntry = await prisma.entry.create({
-    data: { content, summary },
-  });
-
-  return NextResponse.json(newEntry);
 }
 
-// Handle fetching all entries
 export async function GET() {
-  const entries = await prisma.entry.findMany({
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
+  try {
+    const entries = await prisma.entry.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
 
-  return NextResponse.json(entries);
+    console.log('📦 Returning entries:', entries.length);
+    return NextResponse.json(entries);
+  } catch (error) {
+    console.error('❌ Route GET error:', error);
+    return NextResponse.json({ error: 'Failed to fetch entries' }, { status: 500 });
+  }
 }
