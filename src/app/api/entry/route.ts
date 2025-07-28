@@ -4,7 +4,7 @@ import { OpenAI } from 'openai';
 
 const prisma = new PrismaClient();
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 export async function POST(req: Request) {
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
         temperature: 0.7,
       });
 
-      summary = chat.choices?.[0]?.message?.content ?? '(summary failed)';
+      summary = chat.choices[0].message.content || '';
       console.log('🧠 Summary generated:', summary);
     } catch (openaiError) {
       console.error('❌ OpenAI error:', openaiError);
@@ -53,11 +53,10 @@ export async function GET() {
       },
     });
 
-    const safeEntries = Array.isArray(entries) ? entries : [];
-    console.log('📦 Returning entries count:', safeEntries.length);
-    return NextResponse.json(safeEntries);
+    console.log('📦 Returning entries:', entries.length);
+    return NextResponse.json(Array.isArray(entries) ? entries : []);
   } catch (error) {
     console.error('❌ Route GET error:', error);
-    return NextResponse.json({ error: 'Failed to fetch entries' }, { status: 500 });
+    return NextResponse.json([], { status: 200 }); // ← Patch: return empty array instead of error
   }
 }
